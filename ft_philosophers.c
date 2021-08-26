@@ -6,7 +6,7 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/25 21:37:56 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/08/25 23:06:59 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/08/26 15:46:10 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -125,6 +125,14 @@ int	alloc_struct(t_data *data, pthread_mutex_t *screen)
 	return (0);
 }
 
+void	destroy_and_free(t_data *data)
+{
+	destroy_mutex(data->screen, 1);
+	destroy_mutex(data->forks, data->philos_len);
+	free(data->philos);
+	free(data->forks);
+}
+
 int	init_mutex(pthread_mutex_t *forks, pthread_mutex_t *screen, int len, t_philo *philos)
 {
 	int	i;
@@ -147,16 +155,60 @@ int	init_mutex(pthread_mutex_t *forks, pthread_mutex_t *screen, int len, t_philo
 		}
 		++i;
 	}
-	return (1);
+	return (0);
 }
 
-int	init_struct(t_data *data, pthread_mutex_t *screen)
+int	alloc_struct_and_init_mutexs(t_data *data, pthread_mutex_t *screen)
 {	
 	if (alloc_struct(data, screen))
 		return (1);
 	if (init_mutex(data->forks, screen, data->philos_len, data->philos))
 		return (1);
-	if (	
+	return (0);	
+}
+
+void	fill_philo(t_data *data, t_philo *philos, int i)
+{	
+	philos[i].id = i + 1;
+	philos[i].times[0] = data->die_time;
+	philos[i].times[1] = data->meal_time;
+	philos[i].times[2] = data->sleep_time;
+	philos[i].forks = data->forks;
+	philos[i].screen = data->screen;
+	philos[i].last_meal = 0;
+	philos[i].num_of_meal = 0;
+	philos[i].min_of_meal = data->min_of_meal;
+}
+void	*philo_routine(void *data)
+{
+	t_philo *philo;
+
+	philo = (t_philo *)data;
+	pthread_mutex_lock(philo->screen);
+	print_status()
+	pthread_mutex_unlock(philo->screen);
+	return (0);
+}
+
+
+void	print_status(int index_status, t_philo *philo, char *str)
+{	
+	static	char *status[] = {"has taken a fork", "is eating", "is sleeping", "is thinking", "died"};
+	pthread_mutex_lock(philo->screen);
+	printf("%i %s\n", philo->id, status[index_status]);
+	pthread_mutex_unlock(philo->screen);
+}
+void	create_and_launch_philos(t_data *data, t_philo *philos)
+{
+	int	i;
+
+	i = 0;
+	while(i < data->philos_len)
+	{	
+		fill_philo(data, philos, i);
+		pthread_create(&philos[i].thread, 0, philo_routine, &philos[i]);	
+		++i;
+	}
 }
 
 int main(int ac, char **av)
@@ -171,5 +223,9 @@ int main(int ac, char **av)
 	res = parse_args(ac, av, &data);
 	if (res < 2)
 		return (res);
-
+	if (alloc_struct_and_init_mutexs(&data, &screen))
+		return (1);
+	create_and_launch_philos(&data, data.philos);
+	sleep(10);
+	return (0);
 }
