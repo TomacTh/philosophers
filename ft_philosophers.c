@@ -313,13 +313,11 @@ int main(int ac, char **av)
 		i = -1;
 		while(++i < data.philos_len)
 		{
-			if(gettimeofday(&data.time, 0) == -1)
+			if( (gettimeofday(&data.time, 0) == -1)
 				data.error_code = 1;
-			
+			if (convert_in_ms(data.time) - )
+
 		}
 		
 	}
-	//if (data.error_code)
-		//ft_putstr_fd;
-	
 }
