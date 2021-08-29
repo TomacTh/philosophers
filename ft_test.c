@@ -1,3 +1,5 @@
+
+
 #include "ft_philosophers.h"
 
 
@@ -30,13 +32,9 @@ int main(void)
 	//pthread_join(thread, 0);
 	time.tv_sec = 0;
 	time.tv_usec = 0;
+	
 	gettimeofday(&time, 0);
-
-	printf("%li%li\n", time.tv_sec, time.tv_usec);
-
-	sleep(4);
-	gettimeofday(&time, 0);
-	printf("%li%li\n", time.tv_sec, time.tv_usec);
+	printf("%ld\n%ui\n", time.tv_sec, time.tv_usec);
 
 	return (0);
 
@@ -44,18 +42,3 @@ int main(void)
 
 }
 
-
-/* struct timeval {
-               time_t      tv_sec;
-               suseconds_t tv_usec;    /*
-           };
-
-       and gives the number of seconds and microseconds since the Epoch (see time(2)).
-
-       The tz argument is a struct timezone:
-
-           struct timezone {
-               int tz_minuteswest;     /* minutes west
-               int tz_dsttime;         /* type of DS
-           };
- */

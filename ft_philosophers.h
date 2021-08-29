@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ft_philosophers.h                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: tcharvet <tcharvet@student.42nice.fr>      +#+  +:+       +#+        */
+/*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/25 15:31:16 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/08/28 22:19:19 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/08/29 21:12:27 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,31 +23,39 @@
 
 typedef struct	s_philo
 {
-	int					id;
-	int					times[3];
+	unsigned int		id;
+	useconds_t			sleep_time;
+	useconds_t			meal_time;
 	pthread_t			thread;
 	pthread_mutex_t		*fork_one;
 	pthread_mutex_t		*fork_two;
 	pthread_mutex_t		*screen;
-	int					last_meal;
-	int					num_of_meal;
-	int					min_of_meal;
-	int					active;
-	int					error_code;
+	size_t				*begin_time;
+	size_t				last_meal;
+	int					*begin_or_not;
+	struct timeval 		current_time;
+	unsigned int		num_of_meal;
+	unsigned int		min_of_meal;
+	int					*active;
+	int					*error_code;
 }						t_philo;
 
 typedef struct s_data
 {
-	int					philos_len;
-	int					die_time;
-	int					meal_time;
-	int					sleep_time;
-	int					min_of_meal;
-	int					*active;
-	int					*error_code;
+	unsigned int		philos_len;
+	unsigned int		die_time;
+	unsigned int		meal_time;
+	unsigned int		sleep_time;
+	unsigned int		min_of_meal;
+	int					active;
+	int					error_code;
+	struct timeval 		time;
+	int					begin_or_not;
+	size_t				begin_time;
 	t_philo				*philos;
 	pthread_mutex_t		*forks;
 	pthread_mutex_t		*screen;
 }						t_data;
+size_t	convert_in_ms(struct timeval current_time);
 
 #endif

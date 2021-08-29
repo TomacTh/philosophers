@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_philosophers.c                                  :+:      :+:    :+:   */
+/*   ft_philosophers.c                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: tcharvet <tcharvet@student.42nice.fr>      +#+  +:+       +#+        */
+/*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/25 21:37:56 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/08/28 22:16:48 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/08/29 16:28:22 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ void	ft_putstr_fd(char *s, int fd)
 		write(fd, s, ft_strlen(s));
 }
 
-int	ft_atoi_verif(const char *str)
+unsigned int	ft_atoi_verif(const char *str)
 {
 	ssize_t	num;
 
@@ -45,7 +45,7 @@ int	ft_atoi_verif(const char *str)
 		num = num * 10 + (*(char *)str - '0');
 		str++;
 	}
-	if (num > INT_MAX || num < 0 || *str)
+	if (num > UINT_MAX || num < 0 || *str)
 		return (-1);
 	return (num);
 }
@@ -81,7 +81,7 @@ int	parse_args(int ac, char **av, t_data *data)
 	bad_values = data->philos_len < 0 || data->die_time < 0|| data->meal_time < 0
 	|| data->sleep_time < 0;
 	if (bad_values)
-		return (ft_return_error(1, "Arguments must be positive integer\n"));
+		return (ft_return_error(1, "Arguments must be positive unsigned integer\n"));
 	null_values = !data->philos_len || !data->die_time || !data->meal_time
 		|| !data->sleep_time;
 	if (null_values)
@@ -90,7 +90,7 @@ int	parse_args(int ac, char **av, t_data *data)
 	{
 		data->min_of_meal = ft_atoi_verif(av[5]);
 		if (data->min_of_meal < 0)
-			return (ft_return_error(1, "Arguments must be positive integer\n"));
+			return (ft_return_error(1, "Arguments must be positive unsigned integer\n"));
 		if (!data->min_of_meal)
 			return (0);
 	}
@@ -163,18 +163,17 @@ int	alloc_struct_and_init_mutexs(t_data *data, pthread_mutex_t *screen)
 	if (alloc_struct(data, screen))
 		return (1);
 	data->active = 1;
-	data->error_code = 0;
 	if (init_mutex(data->forks, screen, data->philos_len, data->philos))
 		return (1);
 	return (0);
 }
 
 void	fill_philo(t_data *data, t_philo *philos, int i)
-{
+{	
+	memset(&philos[i], 0, sizeof(t_philo));
 	philos[i].id = i + 1;
-	philos[i].times[0] = data->die_time;
-	philos[i].times[1] = data->meal_time;
-	philos[i].times[2] = data->sleep_time;
+	philos[i].sleep_time = data->sleep_time * 1000;
+	philos[i].meal_time = data->meal_time * 1000;
 	if (data->philos_len == 1)
 	{
 		philos[i].fork_one = &data->forks[i];
@@ -189,11 +188,43 @@ void	fill_philo(t_data *data, t_philo *philos, int i)
 			philos[i].fork_one = &data->forks[i - 1];
 	}
 	philos[i].screen = data->screen;
-	philos[i].last_meal = 0;
-	philos[i].num_of_meal = 0;
 	philos[i].min_of_meal = data->min_of_meal;
 	philos[i].error_code = &data->error_code;
 	philos[i].active = &data->active;
+	philos[i].begin_time = &data->begin_time;
+	philos[i].begin_or_not = &data->begin_or_not;
+}
+
+void	manage_status(int index_status, t_philo *philo)
+{
+	size_t time;
+
+	static	char *status[] = {"has taken a fork", "is eating", "is sleeping", "is thinking"};
+	pthread_mutex_lock(philo->screen);
+	if (gettimeofday(&philo->current_time, 0) == -1)
+		*philo->error_code = 1;	
+	if (*philo->active && !(*philo->error_code))
+		time = convert_in_ms(philo->current_time);
+		time -= *philo->begin_time;
+		if(index_status == 1)
+			philo->last_meal = time;
+		printf("%lu %i %s\n", time, philo->id, status[index_status]);
+	pthread_mutex_unlock(philo->screen);
+}
+
+void	init_begin_time(t_philo *philo)
+{
+	if (gettimeofday(&philo->current_time, 0) < 0)
+		*philo->error_code = 1;	
+	else
+		*philo->begin_time = convert_in_ms(philo->current_time);
+	*philo->begin_or_not = 1;
+}
+
+void	mutex_check_error(int(*func)(pthread_mutex_t *), pthread_mutex_t *mutex, int *error_code)
+{
+	if (func(mutex) != 0)
+		*error_code = 1;
 }
 
 void	*philo_routine(void *data)
@@ -201,23 +232,32 @@ void	*philo_routine(void *data)
 	t_philo *philo;
 
 	philo = (t_philo *)data;
-
+	if (!(*philo->begin_or_not))
+		init_begin_time(philo);
+	while(*philo->active && !(*philo->error_code))
+	{
+		manage_status(3, philo);
+		pthread_mutex_lock(philo->fork_one);
+		manage_status(0, philo);
+		pthread_mutex_lock(philo->fork_two);
+		manage_status(0, philo);
+		manage_status(1, philo);
+		usleep(philo->meal_time);
+		++(philo->num_of_meal);
+		pthread_mutex_unlock(philo->fork_two);
+		pthread_mutex_unlock(philo->fork_one);
+		manage_status(2, philo);
+		usleep(philo->sleep_time);
+	}
 	return (0);
 }
 
-
-void	print_status(int index_status, int *error_and_active[2], t_philo *philo, char *str)
+size_t	convert_in_ms(struct timeval current_time)
 {
-	int	*active;
-	int	*error_code;
+	size_t	res;
 
-	error_code = error_and_active[0];
-	active = error_and_active[1];
-	static	char *status[] = {"has taken a fork", "is eating", "is sleeping", "is thinking"};
-	pthread_mutex_lock(philo->screen);
-	if (*active && !(*error_code))
-		printf("%i %s\n", philo->id, status[index_status]);
-	pthread_mutex_unlock(philo->screen);
+	res = current_time.tv_usec/1000 + (current_time.tv_sec * 1000);
+	return (res);
 }
 
 void	create_and_launch_philos(t_data *data, t_philo *philos)
@@ -231,13 +271,21 @@ void	create_and_launch_philos(t_data *data, t_philo *philos)
 	while (++i < data->philos_len)
 	{
 		if (!(philos[i].id % 2))
+		{
 			pthread_create(&philos[i].thread, 0, philo_routine, &philos[i]);
+			pthread_detach(philos[i].thread);
+		}
 	}
+	if (data->philos_len > 1)
+		usleep(data->meal_time / 2);
 	i = -1;
 	while (++i < data->philos_len)
 	{
 		if (philos[i].id % 2)
+		{
 			pthread_create(&philos[i].thread, 0, philo_routine, &philos[i]);
+			pthread_detach(philos[i].thread);
+		}
 	}
 }
 
@@ -256,6 +304,22 @@ int main(int ac, char **av)
 	if (alloc_struct_and_init_mutexs(&data, &screen))
 		return (1);
 	create_and_launch_philos(&data, data.philos);
-	sleep(10);
-	return (0);
+	int		i;
+	size_t	size;
+	
+	
+	while (data.active && !data.error_code)
+	{
+		i = -1;
+		while(++i < data.philos_len)
+		{
+			if(gettimeofday(&data.time, 0) == -1)
+				data.error_code = 1;
+			
+		}
+		
+	}
+	//if (data.error_code)
+		//ft_putstr_fd;
+	
 }
