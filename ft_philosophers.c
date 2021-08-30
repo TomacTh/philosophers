@@ -125,12 +125,13 @@ int	alloc_struct(t_data *data, pthread_mutex_t *screen)
 	return (0);
 }
 
-void	destroy_and_free(t_data *data)
+int	free_and_quit(t_data *data, char *str)
 {
-	destroy_mutex(data->screen, 1);
-	destroy_mutex(data->forks, data->philos_len);
+	if (str)
+		ft_putstr_fd(str, 2);
 	free(data->philos);
 	free(data->forks);
+	return (data->error_code);
 }
 
 int	init_mutex(pthread_mutex_t *forks, pthread_mutex_t *screen, int len, t_philo *philos)
@@ -163,6 +164,8 @@ int	alloc_struct_and_init_mutexs(t_data *data, pthread_mutex_t *screen)
 	if (alloc_struct(data, screen))
 		return (1);
 	data->active = 1;
+	if (!data->min_of_meal)
+		data->min_of_meal = -1;
 	if (init_mutex(data->forks, screen, data->philos_len, data->philos))
 		return (1);
 	return (0);
@@ -195,35 +198,40 @@ void	fill_philo(t_data *data, t_philo *philos, int i)
 	philos[i].begin_or_not = &data->begin_or_not;
 }
 
-void	manage_status(int index_status, t_philo *philo)
-{
-	size_t time;
+void	manage_status(enum state philo_state, t_philo *philo)
+{	
+	struct timeval time;
+	size_t time_size;
 
 	static	char *status[] = {"has taken a fork", "is eating", "is sleeping", "is thinking"};
-	pthread_mutex_lock(philo->screen);
-	if (gettimeofday(&philo->current_time, 0) == -1)
-		*philo->error_code = 1;	
+	mutex_check_error(pthread_mutex_lock, philo->screen, philo->error_code);
 	if (*philo->active && !(*philo->error_code))
-		time = convert_in_ms(philo->current_time);
-		time -= *philo->begin_time;
-		if(index_status == 1)
-			philo->last_meal = time;
-		printf("%lu %i %s\n", time, philo->id, status[index_status]);
-	pthread_mutex_unlock(philo->screen);
+	{
+		check_gettimeofday_return(&time, philo->error_code);
+		time_size = convert_in_ms(time);
+		time_size -= *philo->begin_time;
+		if(philo_state == eating)
+			philo->last_meal = time_size;
+		printf("%lu %i %s\n", time_size, philo->id, status[philo_state]);
+	}
+	mutex_check_error(pthread_mutex_unlock, philo->screen, philo->error_code);
 }
 
-void	init_begin_time(t_philo *philo)
-{
-	if (gettimeofday(&philo->current_time, 0) < 0)
-		*philo->error_code = 1;	
+int	init_begin_time(t_philo *philo)
+{	
+	struct timeval time;
+
+	if(check_gettimeofday_return(&time, philo->error_code))
+		return (1);
 	else
-		*philo->begin_time = convert_in_ms(philo->current_time);
+		*philo->begin_time = convert_in_ms(time);
 	*philo->begin_or_not = 1;
+	return (0);
 }
 
 void	mutex_check_error(int(*func)(pthread_mutex_t *), pthread_mutex_t *mutex, int *error_code)
 {
-	if (func(mutex) != 0)
+	if (func(mutex))
 		*error_code = 1;
 }
 
@@ -236,17 +244,19 @@ void	*philo_routine(void *data)
 		init_begin_time(philo);
 	while(*philo->active && !(*philo->error_code))
 	{
-		manage_status(3, philo);
-		pthread_mutex_lock(philo->fork_one);
-		manage_status(0, philo);
-		pthread_mutex_lock(philo->fork_two);
-		manage_status(0, philo);
-		manage_status(1, philo);
+		manage_status(thinking, philo);
+		mutex_check_error(pthread_mutex_lock, philo->fork_one, philo->error_code);
+		manage_status(forking, philo);
+		mutex_check_error(pthread_mutex_lock, philo->fork_two, philo->error_code);
+		manage_status(forking, philo);
+		manage_status(eating, philo);
 		usleep(philo->meal_time);
 		++(philo->num_of_meal);
-		pthread_mutex_unlock(philo->fork_two);
-		pthread_mutex_unlock(philo->fork_one);
-		manage_status(2, philo);
+		mutex_check_error(pthread_mutex_unlock, philo->fork_two, philo->error_code);
+		mutex_check_error(pthread_mutex_unlock, philo->fork_one, philo->error_code);
+		if (philo->num_of_meal == philo->min_of_meal)
+			return (0);
+		manage_status(sleeping, philo);
 		usleep(philo->sleep_time);
 	}
 	return (0);
@@ -260,13 +270,10 @@ size_t	convert_in_ms(struct timeval current_time)
 	return (res);
 }
 
-void	create_and_launch_philos(t_data *data, t_philo *philos)
+int	launch_first_group_philos(t_data *data, t_philo *philos)
 {
 	int	i;
 
-	i = -1;
-	while (++i < data->philos_len)
-		fill_philo(data, philos, i);
 	i = -1;
 	while (++i < data->philos_len)
 	{
@@ -276,17 +283,128 @@ void	create_and_launch_philos(t_data *data, t_philo *philos)
 			pthread_detach(philos[i].thread);
 		}
 	}
-	if (data->philos_len > 1)
-		usleep(data->meal_time / 2);
+	return (0);
+}
+
+int		launch_second_group_philos(t_data *data, t_philo *philos)
+{	
+	int	i;
+
 	i = -1;
 	while (++i < data->philos_len)
 	{
 		if (philos[i].id % 2)
-		{
-			pthread_create(&philos[i].thread, 0, philo_routine, &philos[i]);
-			pthread_detach(philos[i].thread);
+		{	
+			if (pthread_create(&philos[i].thread, 0, philo_routine, &philos[i]))
+				return (1);
+			if (pthread_detach(philos[i].thread))
+				return (1);
 		}
 	}
+	return (0);
+}
+
+int		create_and_launch_philos(t_data *data, t_philo *philos)
+{
+	int	i;
+
+	i = -1;
+	while (++i < data->philos_len)
+		fill_philo(data, philos, i);
+	if (launch_first_group_philos(data, philos))
+	{	
+		data->error_code = 1;
+		return (1);
+	}
+	//if (data->philos_len > 1)
+		//usleep(data->meal_time / 2);
+	i = -1;
+	if (launch_second_group_philos(data, philos))
+	{
+		data->error_code = 1;
+		return (1);
+	}
+	return (0);
+}
+
+void	print_die(t_philo *philo)
+{
+	size_t			time_size;
+	struct timeval	time;
+
+	mutex_check_error(pthread_mutex_lock, philo->screen, philo->error_code);
+	check_gettimeofday_return(&time, philo->error_code);
+	if (!*philo->error_code)
+	{
+		time_size = convert_in_ms(time);
+		time_size -= *philo->begin_time;
+		printf("%lu %i died\n", time_size, philo->id);
+	}
+	mutex_check_error(pthread_mutex_unlock, philo->screen, philo->error_code);
+}
+
+int		check_die(t_data *data, t_philo *philo, int is_die, int has_eat_required_times)
+{
+	if (is_die && !has_eat_required_times)
+	{	
+		data->active = 0;
+		print_die(philo);
+		return (1);
+	}
+	return (0);
+}
+
+int	check_eat_required(t_data *data, int has_eat_required_times)
+{
+	if (data->min_of_meal != -1)
+	{
+		if (has_eat_required_times)
+			++data->philos_finish;
+		if (data->philos_finish == data->philos_len)
+		{
+			data->active = 0;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+int		check_gettimeofday_return(struct timeval *time, int *error_code)
+{
+	if (gettimeofday(time, 0) == -1)
+	{
+		*error_code = 1;
+		return (1);
+	}
+	return (0);
+}
+
+void	*supervisor_routine(void *addr)
+{
+	t_data	*data;
+	int		i;
+	size_t	size;
+	int		is_die;
+	int		has_eat_required_times;
+
+	data = (t_data *)addr;
+	while (data->active && !data->error_code)
+	{
+		i = -1;
+		while(++i < data->philos_len && data->begin_or_not)
+		{
+			if (check_gettimeofday_return(&data->time, &data->error_code))
+				return (0); 
+			size = (convert_in_ms(data->time) - data->begin_time);
+			is_die = (size - data->philos[i].last_meal) >= data->die_time;
+			has_eat_required_times = (data->min_of_meal == data->philos[i].num_of_meal);
+			if (check_die(data, &data->philos[i], is_die, has_eat_required_times))
+				return (0);
+			else if (check_eat_required(data, has_eat_required_times))
+				return (0);
+		}
+	}
+	return (0);
 }
 
 int main(int ac, char **av)
@@ -303,21 +421,13 @@ int main(int ac, char **av)
 		return (res);
 	if (alloc_struct_and_init_mutexs(&data, &screen))
 		return (1);
-	create_and_launch_philos(&data, data.philos);
-	int		i;
-	size_t	size;
-	
-	
-	while (data.active && !data.error_code)
-	{
-		i = -1;
-		while(++i < data.philos_len)
-		{
-			if( (gettimeofday(&data.time, 0) == -1)
-				data.error_code = 1;
-			if (convert_in_ms(data.time) - )
-
-		}
-		
-	}
+	if (pthread_create(&data.supervisor, 0, supervisor_routine, &data))
+		return (free_and_quit(&data, "Error: Cannot create monitoring thread\n"));
+	if (create_and_launch_philos(&data, data.philos))
+		return (free_and_quit(&data, "Error when creating philos threads or detach them\n"));
+	if (pthread_join(data.supervisor, 0))
+		return (free_and_quit(&data, "Error: Cannot join monitoring thread\n"));
+	if (data.error_code)
+		return (free_and_quit(&data, "Error \n"));
+	return (free_and_quit(&data, 0));
 }
