@@ -6,7 +6,7 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 13:48:35 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 14:38:19 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/01 17:18:15 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,7 +43,7 @@ size_t	convert_in_ms(struct timeval current_time)
 	return (res);
 }
 
-void	destroy_mutex(pthread_mutex_t *mutex, int len)
+/* void	destroy_mutex(pthread_mutex_t *mutex, int len)
 {
 	int	i;
 
@@ -55,3 +55,4 @@ void	destroy_mutex(pthread_mutex_t *mutex, int len)
 		++i;
 	}
 }
+ */

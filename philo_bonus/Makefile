@@ -1,9 +1,9 @@
 CC		=	gcc
 NAME	=	philo
 NAME_BONUS =	philo_bonus
-CFLAGS	= 	-Wall -Wextra -Werror
+CFLAGS	= 	-Wall -Wextra -Werror -ggdb
 INCLUDES		=	./inc
-SRCS = $(addprefix ./srcs/, ft_create_philos.c ft_utils.c ft_philosophers.c ft_parse_and_init.c ft_monitoring.c )
+SRCS = $(addprefix ./srcs/, ft_create_philos_bonus.c ft_utils_bonus.c ft_philosophers_bonus.c ft_parse_and_init_bonus.c ft_monitoring_bonus.c )
 
 
 OBJS	=	$(SRCS:.c=.o)

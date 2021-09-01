@@ -6,11 +6,11 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 14:00:12 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 16:32:47 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/01 17:41:05 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../inc/ft_philosophers_bonus.h"
+#include "ft_philosophers_bonus.h"
 
 
 void	fill_philo(t_data *data, t_philo *philos, int i)
@@ -32,6 +32,9 @@ int	create_and_launch_philos(t_data *data, t_philo *philos)
 {
 	int	i;
 
+	i = -1;
+	while (++i < data->philos_len)
+		fill_philo(data, &data->philos[i], i);
 	i = -1;
 	while (++i < data->philos_len)
 	{

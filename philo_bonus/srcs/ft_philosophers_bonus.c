@@ -6,7 +6,7 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 09:42:19 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 16:53:28 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/01 17:54:33 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ int	free_kill_and_quit(t_data *data, char *str)
 		ft_putstr_fd(str, 2);
 	i = -1;
 	while (++i < data->philos_len)
-		kill(data->philos[i].process);
+		kill(data->philos[i].process, 9);
 	close_sem(data->screen);
 	close_sem(data->forks);
 	free(data->philos);
@@ -41,7 +41,7 @@ void	manage_status(enum e_state philo_e_state, t_philo *philo)
 	static char		*status[] = {"is eating",
 		"is sleeping", "has taken a fork", "is thinking"};
 
-	mutex_check(pthread_mutex_lock, philo->screen, philo->error_code);
+	sem_wait(philo->screen);
 	if (*philo->active && !(*philo->error_code))
 	{
 		gettimeofday(&time, 0);
@@ -54,11 +54,11 @@ void	manage_status(enum e_state philo_e_state, t_philo *philo)
 		}
 		printf("%lu %i %s\n", time_size, philo->id, status[philo_e_state]);
 	}
-	mutex_check(pthread_mutex_unlock, philo->screen, philo->error_code);
+	sem_post(philo->screen);
 }
 
 void	init_begin_time(t_philo *philo)
-{	
+{
 	struct timeval	time;
 
 	gettimeofday(&time, 0);
@@ -66,24 +66,21 @@ void	init_begin_time(t_philo *philo)
 	*philo->begin_or_not = 1;
 }
 
-void	*philo_routine(void *data)
+void	*philo_routine(t_philo *philo)
 {
-	t_philo	*philo;
-
-	philo = (t_philo *)data;
 	if (!(*philo->begin_or_not))
 		init_begin_time(philo);
 	while (*philo->active && !(*philo->error_code))
 	{
 		manage_status(thinking, philo);
-		mutex_check(pthread_mutex_lock, philo->fork_one, philo->error_code);
+		sem_wait(philo->forks);
 		manage_status(forking, philo);
-		mutex_check(pthread_mutex_lock, philo->fork_two, philo->error_code);
+		sem_wait(philo->forks);
 		manage_status(forking, philo);
 		manage_status(eating, philo);
 		sleep_if_no_error(philo->meal_time, philo->error_code, philo->active);
-		mutex_check(pthread_mutex_unlock, philo->fork_two, philo->error_code);
-		mutex_check(pthread_mutex_unlock, philo->fork_one, philo->error_code);
+		sem_post(philo->forks);
+		sem_post(philo->forks);
 		if (philo->num_of_meal == philo->min_of_meal)
 			return (NULL);
 		manage_status(sleeping, philo);
@@ -116,18 +113,18 @@ int	init_sem(sem_t *sem, char *str, int value)
 	return (0);
 }
 
-int	init_and_alloc(t_data *data, sem_t *screen, sem_t *forks)
-{	
+int	init_semaphore_and_alloc_philos(t_data *data, sem_t *screen, sem_t *forks)
+{
 	int	bool;
 
 	data->active = 1;
 	data->die_time_ms = data->die_time * 1000;
-	data->screen = screen;
-	data->forks = forks;
 	if (!data->min_of_meal)
 		data->min_of_meal = -1;
 	bool = (init_sem(data->screen, "screen", 1)
 		&& init_sem(data->forks, "forks", data->philos_len));
+	data->screen = screen;
+	data->forks = forks;
 	if (bool)
 		return (free_kill_and_quit(data, "Error when init semaphore\n"));
 	if (alloc_philos(data))
@@ -151,11 +148,10 @@ int	main(int ac, char **av)
 		return (res);
 	if (init_semaphore_and_alloc_philos(&data, &forks, &screen))
 		return (1);
-	if (create_supervisor_process(&data.process))
-		return (free_kill_and_quit(&data, "Proccess error\n"));
 	if (create_and_launch_philos(&data, data.philos))
 		return (free_kill_and_quit(&data, "Proccess error\n"));
+	supervisor_routine(&data);
 	if (data.error_code)
 		return (free_kill_and_quit(&data, "Thread error\n"));
-	return (free_join_and_quit(&data, 0));
+	return (free_kill_and_quit(&data, 0));
 }

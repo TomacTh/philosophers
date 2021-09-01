@@ -6,7 +6,7 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/25 15:31:16 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 16:42:04 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/01 16:58:45 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,7 +54,6 @@ typedef struct s_data
 	int					error_code;
 	struct timeval		time;
 	int					begin_or_not;
-	pid_t				process;
 	size_t				begin_time;
 	t_philo				*philos;
 	sem_t				*screen;

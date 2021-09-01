@@ -6,7 +6,7 @@
 /*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 14:05:25 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 16:52:24 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/01 17:54:46 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,13 +22,13 @@ void	print_die(t_philo *philo, useconds_t die_time)
 {
 	size_t			time_size;
 
-	//sem
+	sem_wait(philo->screen);
 	if (!*philo->error_code)
 	{
 		time_size = philo->last_meal + die_time;
 		printf("%lu %i died\n", time_size, philo->id);
 	}
-	//sem
+	sem_post(philo->screen);
 }
 
 int	check_die(t_data *data, t_philo *philo, int is_die,
