@@ -1,16 +1,54 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_parse_and_init.c                                :+:      :+:    :+:   */
+/*   ft_parse_and_init_bonus.c                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: tcharvet <tcharvet@student.42nice.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 13:51:01 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 19:52:56 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/03 15:18:34 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "ft_philosophers.h"
+#include "ft_philosophers_bonus.h"
+
+int	alloc_philos(t_data *data)
+{
+	data->philos = malloc(sizeof(t_philo) * data->philos_len);
+	if (!data->philos)
+	{
+		free(data->forks);
+		return (ft_return_error(1, "Malloc error\n"));
+	}
+	return (0);
+}
+
+void	init_sem(sem_t **sem, char *str, int value)
+{
+	*sem = sem_open(str, O_CREAT | O_EXCL, 0644, value);
+	if (*sem == SEM_FAILED)
+	{
+		sem_unlink(str);
+		*sem = sem_open(str, O_CREAT | O_EXCL, 0644, value);
+	}
+}
+
+int	init_semaphore_and_alloc_philos(t_data *data, sem_t **screen, sem_t **forks)
+{
+	data->active = 1;
+	data->die_time_ms = data->die_time * 1000;
+	if (!data->min_of_meal)
+		data->min_of_meal = -1;
+	init_sem(screen, "screen", 1);
+	init_sem(forks, "forks", data->philos_len);
+	data->forks = *forks;
+	data->screen = *screen;
+	if (data->forks == SEM_FAILED || data->screen == SEM_FAILED)
+		return (free_kill_and_quit(data, "Error when init semaphore\n"));
+	if (alloc_philos(data))
+		return (free_kill_and_quit(data, "Malloc error\n"));
+	return (0);
+}
 
 unsigned int	ft_atoi_verif(const char *str, int *error_code)
 {
@@ -60,58 +98,4 @@ int	parse_args(int ac, char **av, t_data *data)
 			return (0);
 	}
 	return (2);
-}
-
-int	init_mutex(pthread_mutex_t *forks, pthread_mutex_t *screen,
-	int len, t_philo *philos)
-{
-	int	i;
-
-	i = 0;
-	if (pthread_mutex_init(screen, 0))
-	{
-		free(philos);
-		free(forks);
-		return (ft_return_error(1, "Cannot init mutex\n"));
-	}
-	while (i < len)
-	{
-		if (pthread_mutex_init(&forks[i], 0))
-		{
-			free(philos);
-			destroy_mutex(screen, 1);
-			destroy_mutex(forks, i);
-			return (ft_return_error(1, "Cannot init mutex\n"));
-		}
-		++i;
-	}
-	return (0);
-}
-
-int	alloc_struct(t_data *data, pthread_mutex_t *screen)
-{
-	data->screen = screen;
-	data->forks = malloc(sizeof(pthread_mutex_t) * data->philos_len);
-	if (!data->forks)
-		return (ft_return_error(1, "Malloc error\n"));
-	data->philos = malloc(sizeof(t_philo) * data->philos_len);
-	if (!data->philos)
-	{
-		free(data->forks);
-		return (ft_return_error(1, "Malloc error\n"));
-	}
-	return (0);
-}
-
-int	alloc_struct_and_init_mutexs(t_data *data, pthread_mutex_t *screen)
-{
-	if (alloc_struct(data, screen))
-		return (1);
-	data->active = 1;
-	data->die_time_ms = data->die_time * 1000;
-	if (!data->min_of_meal)
-		data->min_of_meal = -1;
-	if (init_mutex(data->forks, screen, data->philos_len, data->philos))
-		return (1);
-	return (0);
 }

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   ft_monitoring.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
+/*   By: tcharvet <tcharvet@student.42nice.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 14:05:25 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 13:39:18 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/03 15:42:50 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,7 +35,7 @@ int	check_die(t_data *data, t_philo *philo, int is_die,
 	int philo_finish)
 {
 	if (is_die && !philo_finish)
-	{	
+	{
 		data->active = 0;
 		print_die(philo, data->die_time);
 		return (1);
@@ -71,7 +71,7 @@ void	*supervisor_routine(void *addr)
 	{
 		i = -1;
 		while (++i < data->philos_len && data->begin_or_not)
-		{	
+		{
 			gettimeofday(&data->time, 0);
 			size = (convert_in_ms(data->time) - data->begin_time);
 			is_die = (size - data->philos[i].last_meal) >= data->die_time;

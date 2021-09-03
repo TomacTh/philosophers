@@ -3,14 +3,20 @@
 /*                                                        :::      ::::::::   */
 /*   ft_utils_bonus.c                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: tcharvet <tcharvet@student.42.fr>          +#+  +:+       +#+        */
+/*   By: tcharvet <tcharvet@student.42nice.fr>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/08/31 13:48:35 by tcharvet          #+#    #+#             */
-/*   Updated: 2021/09/01 17:18:15 by tcharvet         ###   ########.fr       */
+/*   Updated: 2021/09/03 15:19:54 by tcharvet         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ft_philosophers_bonus.h"
+
+void	sleep_if_active(useconds_t time, int *active)
+{
+	if (*active)
+		usleep(time);
+}
 
 size_t	ft_strlen(const char *s)
 {
@@ -42,17 +48,3 @@ size_t	convert_in_ms(struct timeval current_time)
 	res = current_time.tv_usec / 1000 + (current_time.tv_sec * 1000);
 	return (res);
 }
-
-/* void	destroy_mutex(pthread_mutex_t *mutex, int len)
-{
-	int	i;
-
-	i = 0;
-	while (i < len)
-	{
-		if (pthread_mutex_destroy(&mutex[i]))
-			ft_putstr_fd("Error when destroy mutex\n", 2);
-		++i;
-	}
-}
- */
